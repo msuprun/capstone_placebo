@@ -1,0 +1,21 @@
+Capstone Project:
+
+"Association of Placebo Response Rate with the Baseline Seizure Rate 
+in Epilepsy Clinical Trials, Simulation Study."
+
+Maria Suprun 
+maria.suprun@mssm.edu 
+suprun.maria@gmail.com
+
+MPH, Biostatistics
+Icahn School of Medicine at mount Sinai
+New York, NY
+01/01/2014 - 05/01/2014
+
+Prof.: Emilia Bagiella, Ph.D. 
+
+Simulate clinical trials of epilepsy.
+Add variations of < 4 seizures per 28 days to baseline diaries
+and see how the placebo response changes at the end of the trial.
+Do for 10, 20, and 30% of such values.  
+
