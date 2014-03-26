@@ -78,6 +78,7 @@ for (j in 1:nSubjects) {
 }
 
 baselineDiary <- baseline(nSubjects=200, nDays=28, nMonths=2)
+<<<<<<< HEAD
 
 #################################################################################
 ########################### MAINTENANCE DIARY ###################################
@@ -133,3 +134,5 @@ diaryMatrix[,151] <- ifelse(diaryMatrix[,150]/2 >= diaryMatrix[,32], 1,0)
 respRatePlacebo <- (sum(diaryMatrix[which(diaryMatrix[,33]==0),151])
                     /dim(diaryMatrix[which(diaryMatrix[,33]==0),])[1])
 
+=======
+>>>>>>> d86e2b7c787c713f9ff323d263b7998c9de98503
