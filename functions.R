@@ -11,11 +11,11 @@ rm(list=ls())
 
 ########################### TRIAL DATASETS #######################################
 # creating dataset for baseline diary
-baselineDiary <- data.frame(matrix(data=NA, nrow=200, ncol=6))
+baselineDiary <- data.frame(matrix(data=NA, nrow=200, ncol=64))
 colnames(baselineDiary)[1:3] <- c("ptID", "baselineMu", "baselineSize")
 colnames(baselineDiary)[4:59] <- paste('baselineDay', 1:56, sep="") 
 colnames(baselineDiary)[60:61] <- c("sumBaselineMonth1", "sumBaselineMonth2")
-colnames(baselineDiary)[62:63] <- c("group", "responder")
+colnames(baselineDiary)[62:64] <- c("group", "responder", "lowBaseSeiz")
 
 # creating dataset for maintanence diary
 maintDiary <- data.frame(matrix(data=NA, nrow=200, ncol=115))
@@ -60,7 +60,7 @@ for (j in 1:nSubjects) {
       baselineDiary$sumBaselineMonth2[j] <- sumBaselineMonth2
       break
       }
-    }
+  }
 # Group assignment: if a value from Std Norm Dist > 0 then group1, group0 otherwise
   baselineDiary$group[j] <- ifelse(rnorm(1) > 0, 1, 0)
 # 20% responders for placebo group (responder = 1)
@@ -77,8 +77,7 @@ for (j in 1:nSubjects) {
   return(baselineDiary)
 }
 
-baselineDiary <- baseline(nSubjects=200, nDays=28, nMonths=2)
-<<<<<<< HEAD
+ baselineDiary <- baseline(nSubjects=200, nDays=28, nMonths=2)
 
 #################################################################################
 ########################### MAINTENANCE DIARY ###################################
@@ -86,53 +85,68 @@ baselineDiary <- baseline(nSubjects=200, nDays=28, nMonths=2)
 # 50% improvement for 20% of subjects in placebo group 
 # and for 50% of subjects in treatment group for 4x28 days 
 # mean and size of the rows as parameters 
-maint <- function(nSubjects, nDays, nMonths){
+set.seed(-1025)
+maintenance <- function(nSubjects, nDays, nMonths){
 for (j in 1:nSubjects) {
-  if(baselineDiary$responder[j] == 1) {
+  if(baselineDiary$responder[j] %in% c(1,2)) {
     diaryDays <- rnbinom(n = nMonths*nDays,  
-                         mu = (maintDiary$maintMu[j] <- 0.5*rowMeans(baselineDiary[j, 4:59])),
-                         size = (maintDiary$maintSize[j] <- baselineDiary$baselineSize[j]))
-    maintDiary[j, 3:114] <- diaryDays
-  } else {
-    diaryDays <- rnbinom(n = nMonths*nDays,  
-                         mu = (maintDiary$maintMu[j] <- rowMeans(baselineDiary[j, 4:59])),
-                         size = (maintDiary$maintSize[j] <- baselineDiary$baselineSize[j]))
-    maintDiary[j, 3:114] <- diaryDays
-    }
-  if(baselineDiary$responder[j] == 2) {
-    diaryDays <- rnbinom(n = nMonths*nDays,  
-                         mu = (maintDiary$maintMu[j] <- 0.5*rowMeans(baselineDiary[j, 4:59])),
+                         mu = (maintDiary$maintMu[j] <- 0.5*rowMeans(baselineDiary[j, 4:31])),
                          size = (maintDiary$maintSize[j] <- baselineDiary$baselineSize[j]))
     maintDiary[j, 3:(3+nMonths*nDays-1)] <- diaryDays
   } else {
     diaryDays <- rnbinom(n = nMonths*nDays,  
-                         mu = (maintDiary$maintMu[j] <- rowMeans(baselineDiary[j, 4:59])),
+                         mu = (maintDiary$maintMu[j] <- rowMeans(baselineDiary[j, 4:31])),
                          size = (maintDiary$maintSize[j] <- baselineDiary$baselineSize[j]))
     maintDiary[j, 3:(3+nMonths*nDays-1)] <- diaryDays
   }
 # Number of seizures during the last month of maintenance
   maintDiary$sumSeizLastMonth[j] <- rowSums(maintDiary[j,87:114])
-  }
+ }
   return(maintDiary)
 }
 
-maintDiary <- maint(nSubjects=200, nDays=28, nMonths=4)
+ maintDiary <- maintenance(nSubjects=200, nDays=28, nMonths=4)
+
+#################################################################################
+########################### SMALL N OF BASELINE SEIZURES ########################
+#################################################################################
+
+## Selecting % of the sample to have only small N (0<n<4) of seizures per month.
+# selection is made by drawing at random from (1,0) with specified propbabilities
+# (pct). If 1, then subject will have low baseline seizure rate, 0 - otherwise
+## Each subject should have at least 1 seizure
+set.seed(-1025)
+lowSeizure <- function(pct, nSeizures, nSubjects, nMonths, nDays){
+  for (j in 1:nSubjects){
+# Those who have 1 in lowBaseSeiz will later have < 4 sezires / 28 days at baseline
+  baselineDiary$lowBaseSeiz[j] <- sample(c(1, 0), 1, 
+                                         replace=TRUE, prob=c(pct, (1-pct))) 
+  if (baselineDiary$lowBaseSeiz[j] == 1) {
+  if (nSeizures %in% c(1,2,3)) {
+      repeat {
+        diaryDays <- rnbinom(n=nMonths*nDays, mu=(baselineDiary$baselineMu[j] <- runif(1, 0.1, 0.99)), 
+                             size=(baselineDiary$baselineSize[j] <- runif(1, 1, 99)))
+        val1 <- sum(diaryDays[1:28])
+        val2 <- sum(diaryDays[29:56])
+        if ((val1 <= nSeizures & val1 >0) & (val2 <= nSeizures & val2 > 0)) { 
+          baselineDiary[j, 4:59] <- diaryDays
+          break
+        }
+      }
+    } else {
+      stop("nSeizures should be 1,2,3")
+    }
+  } 
+}
+  return(baselineDiary)
+}
+  
+
+baselineDiary <- lowSeizure(pct=0.1, nSeizures=1, nSubjects=200, nMonths=2, nDays=28)
+rowSums(baselineDiary[17, 4:28]) 
+rowSums(baselineDiary[17, 29:59]) 
+
+#  sampleBad <- diaryMatrix[sample(nrow(diaryMatrix), size=(nrow(diaryMatrix)*0.1)), 1]
+#  c <- ifelse(diaryMatrix[,1] %in% sampleBad, 1, 0) 
 
 
-
-# calculating # of seizures for the last 28 days of the trial
-diaryMatrix[j,150] <- sum(diaryMatrix[j,122:149])
-# If # seizures/28d at the end of the study is <= 50% of # of seizures/28d
-# at baseline, => responder
-diaryMatrix[,151] <- ifelse(diaryMatrix[,150]/2 >= diaryMatrix[,32], 1,0)
-### Responder rate:
-# Responder - a patient with >= 50% reduction in monthly # of seizures.
-# If # seizures/28d at the end of the study is <= 50% of # of seizures/28d
-# at baseline, => responder. 
-# Outcome is # of responders in the study out of the total sample size 
-# Responder Rate: # of responders to placebo / total N in placebo 
-respRatePlacebo <- (sum(diaryMatrix[which(diaryMatrix[,33]==0),151])
-                    /dim(diaryMatrix[which(diaryMatrix[,33]==0),])[1])
-
-=======
->>>>>>> d86e2b7c787c713f9ff323d263b7998c9de98503
