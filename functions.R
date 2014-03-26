@@ -9,12 +9,20 @@
  
 rm(list=ls())
 
-########################### TRIAL DATASET #######################################
-# creating dataset for the trial
-baselineDiary <- data.frame(matrix(data=NA, nrow=200, ncol=61))
+########################### TRIAL DATASETS #######################################
+# creating dataset for baseline diary
+baselineDiary <- data.frame(matrix(data=NA, nrow=200, ncol=6))
 colnames(baselineDiary)[1:3] <- c("ptID", "baselineMu", "baselineSize")
 colnames(baselineDiary)[4:59] <- paste('baselineDay', 1:56, sep="") 
 colnames(baselineDiary)[60:61] <- c("sumBaselineMonth1", "sumBaselineMonth2")
+colnames(baselineDiary)[62:63] <- c("group", "responder")
+
+# creating dataset for maintanence diary
+maintDiary <- data.frame(matrix(data=NA, nrow=200, ncol=115))
+colnames(maintDiary)[1:2] <- c("maintMu", "maintSize")
+colnames(maintDiary)[3:114] <- paste('maintDay', 1:112, sep="") 
+colnames(maintDiary)[115] <- "sumSeizLastMonth"
+
 
 #################################################################################
 ########################### BASELINE DIARY ######################################
@@ -47,66 +55,75 @@ for (j in 1:nSubjects) {
     # if total N of sezires for 28 dyas < 4 then re-run 
     if(sumVal == 0) {
       # here the code stacks all iterations of the 'i' loop to a matrix
-      baselineDiary[j, 4:59] <- diaryDays
+      baselineDiary[j, 4:(4+nMonths*nDays-1)] <- diaryDays
       baselineDiary$sumBaselineMonth1[j] <- sumBaselineMonth1
       baselineDiary$sumBaselineMonth2[j] <- sumBaselineMonth2
       break
       }
     }
+# Group assignment: if a value from Std Norm Dist > 0 then group1, group0 otherwise
+  baselineDiary$group[j] <- ifelse(rnorm(1) > 0, 1, 0)
+# 20% responders for placebo group (responder = 1)
+  r0 <- (baselineDiary[which(baselineDiary$group==0),]
+         [sample(nrow(baselineDiary[which(baselineDiary$group==0),]), 
+                 size=(nrow(baselineDiary[which(baselineDiary$group==0),])*0.2)),1])
+  baselineDiary$responder <- ifelse(baselineDiary$ptID %in% r0, 1, 0)
+# 50% responders for treatment group (responder = 2)
+  r1 <- (baselineDiary[which(baselineDiary$group==1),]
+       [sample(nrow(baselineDiary[which(baselineDiary$group==1),]), 
+               size=(nrow(baselineDiary[which(baselineDiary$group==1),])*0.5)),1])
+  baselineDiary$responder <- ifelse(baselineDiary$ptID %in% r1, 2, baselineDiary$responder)
   }
   return(baselineDiary)
 }
 
 baselineDiary <- baseline(nSubjects=200, nDays=28, nMonths=2)
 
-
-  # selecting 10% of the sample to have only <= 1 seizure per month
-  diaryMatrix[j,60] <- sample(c(1, 0), 1, replace=TRUE, prob=c(0.1, 0.9))  
-  #  sampleBad <- diaryMatrix[sample(nrow(diaryMatrix), size=(nrow(diaryMatrix)*0.1)), 1]
-  #  c <- ifelse(diaryMatrix[,1] %in% sampleBad, 1, 0)
-  # only one or less seizures per month for those 10%  
-  if (diaryMatrix[j,60] == 1){
-    diary28Days <- rnbinom(n = 2*28, mu = (diaryMatrix[j, 2] <- 0.01), 
-                           size = (diaryMatrix[j, 3] <- runif(1, min=1, max=3))) 
-    diaryMatrix[j, 4:59] <- diary28Days
-  }
-  #  diaryMatrix[, 61] <- apply(diaryMatrix[, 4:31],1,sum)  # N of seizures per 28 days first month
-  # Group assignment (random)
-  ##  diaryMatrix[, 61] <- ifelse(diaryMatrix[,1] %in% (sample(nrow(diaryMatrix), size=0.5*dim(diaryMatrix)[1])), 1,0)
-  # 20% responders for placebo group (Column 62 = 0)
-  ##  r0 <- diaryMatrix[which(diaryMatrix[,62]==0),][sample(nrow(diaryMatrix[which(diaryMatrix[,33]==0),]), size=(nrow(diaryMatrix[which(diaryMatrix[,33]==0),])*0.2)), 1]
-  # Column #62 - whether subject responded to placebo
-  ##  diaryMatrix[,62] <- ifelse(diaryMatrix[,1] %in% r0, 1, 0)
-  # 50% responders for drug group (Column x = 1)
-  #  r1 <- diaryMatrix[which(diaryMatrix[,x]==1),][sample(nrow(diaryMatrix[which(diaryMatrix[,33]==1),]), size=0.5*dim(diaryMatrix[which(diaryMatrix[,33]==1),])[1]), 1]
-  #  diaryMatrix[,x] <- ifelse(diaryMatrix[,1] %in% r1[,1], 2, diaryMatrix[,34])
-}
-
-# 50% improvement for 20% of subjects in placebo group for 4x28 days 
-# mean of the rows as a parameter 
-for (j in 1:200) {
-  if(diaryMatrix[j,61] == 1) {
-    diaryMain <- rnbinom(n = 4*28,  
-                         mu = (diaryMatrix[j, 36] <- 0.5*mean(diaryMatrix[j, 4:31])),
-                         size = (diaryMatrix[j, 37] <- diaryMatrix[j, 3]))
-    diaryMatrix[j, 38:149] <- diaryMain
+#################################################################################
+########################### MAINTENANCE DIARY ###################################
+#################################################################################
+# 50% improvement for 20% of subjects in placebo group 
+# and for 50% of subjects in treatment group for 4x28 days 
+# mean and size of the rows as parameters 
+maint <- function(nSubjects, nDays, nMonths){
+for (j in 1:nSubjects) {
+  if(baselineDiary$responder[j] == 1) {
+    diaryDays <- rnbinom(n = nMonths*nDays,  
+                         mu = (maintDiary$maintMu[j] <- 0.5*rowMeans(baselineDiary[j, 4:59])),
+                         size = (maintDiary$maintSize[j] <- baselineDiary$baselineSize[j]))
+    maintDiary[j, 3:114] <- diaryDays
   } else {
-    diaryMain <- rnbinom(n = 4*28,  
-                         mu = (diaryMatrix[j, 36] <- mean(diaryMatrix[j, 4:31])),
-                         size = (diaryMatrix[j, 37] <- diaryMatrix[j, 3]))
-    diaryMatrix[j, 38:149] <- diaryMain
+    diaryDays <- rnbinom(n = nMonths*nDays,  
+                         mu = (maintDiary$maintMu[j] <- rowMeans(baselineDiary[j, 4:59])),
+                         size = (maintDiary$maintSize[j] <- baselineDiary$baselineSize[j]))
+    maintDiary[j, 3:114] <- diaryDays
+    }
+  if(baselineDiary$responder[j] == 2) {
+    diaryDays <- rnbinom(n = nMonths*nDays,  
+                         mu = (maintDiary$maintMu[j] <- 0.5*rowMeans(baselineDiary[j, 4:59])),
+                         size = (maintDiary$maintSize[j] <- baselineDiary$baselineSize[j]))
+    maintDiary[j, 3:(3+nMonths*nDays-1)] <- diaryDays
+  } else {
+    diaryDays <- rnbinom(n = nMonths*nDays,  
+                         mu = (maintDiary$maintMu[j] <- rowMeans(baselineDiary[j, 4:59])),
+                         size = (maintDiary$maintSize[j] <- baselineDiary$baselineSize[j]))
+    maintDiary[j, 3:(3+nMonths*nDays-1)] <- diaryDays
   }
-  # those with total of 0 seizures at baseline were replaced with 0.000001 values, 
-  # so we can do division by zero at the effect size calculation
-  diaryMatrix[j,32] <- ifelse(diaryMatrix[j,32] == 0, 0.0001, diaryMatrix[j,32])
-  # calculating # of seizures for the last 28 days of the trial
-  diaryMatrix[j,150] <- sum(diaryMatrix[j,122:149])
-  # If # seizures/28d at the end of the study is <= 50% of # of seizures/28d
-  # at baseline, => responder
-  diaryMatrix[,151] <- ifelse(diaryMatrix[,150]/2 >= diaryMatrix[,32], 1,0)
+# Number of seizures during the last month of maintenance
+  maintDiary$sumSeizLastMonth[j] <- rowSums(maintDiary[j,87:114])
+  }
+  return(maintDiary)
 }
 
+maintDiary <- maint(nSubjects=200, nDays=28, nMonths=4)
 
+
+
+# calculating # of seizures for the last 28 days of the trial
+diaryMatrix[j,150] <- sum(diaryMatrix[j,122:149])
+# If # seizures/28d at the end of the study is <= 50% of # of seizures/28d
+# at baseline, => responder
+diaryMatrix[,151] <- ifelse(diaryMatrix[,150]/2 >= diaryMatrix[,32], 1,0)
 ### Responder rate:
 # Responder - a patient with >= 50% reduction in monthly # of seizures.
 # If # seizures/28d at the end of the study is <= 50% of # of seizures/28d
@@ -116,15 +133,3 @@ for (j in 1:200) {
 respRatePlacebo <- (sum(diaryMatrix[which(diaryMatrix[,33]==0),151])
                     /dim(diaryMatrix[which(diaryMatrix[,33]==0),])[1])
 
-
-df <- matrix(NA, 1, 2)
-x1 <- function(x){
-  vals <- rnorm(x)
-  mu <- mean(vals)
-  std <- sd(vals)
-  df[1,1] <-mu
-  df[1,2] <- sd
-  return(list(sd,mu,vals,df))
-}
-
-x1(5)
