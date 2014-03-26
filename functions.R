@@ -4,26 +4,6 @@
 # Trial: 2 months (28 days each) of baseline diary, 
 # then 4 months of maintanence
 
-## Functions are here for convenience, they will be repeated in each code, where
-# they are used. 
- 
-rm(list=ls())
-
-########################### TRIAL DATASETS #######################################
-# creating dataset for baseline diary
-baselineDiary <- data.frame(matrix(data=NA, nrow=200, ncol=64))
-colnames(baselineDiary)[1:3] <- c("ptID", "baselineMu", "baselineSize")
-colnames(baselineDiary)[4:59] <- paste('baselineDay', 1:56, sep="") 
-colnames(baselineDiary)[60:61] <- c("sumBaselineMonth1", "sumBaselineMonth2")
-colnames(baselineDiary)[62:64] <- c("group", "responder", "lowBaseSeiz")
-
-# creating dataset for maintanence diary
-maintDiary <- data.frame(matrix(data=NA, nrow=200, ncol=115))
-colnames(maintDiary)[1:2] <- c("maintMu", "maintSize")
-colnames(maintDiary)[3:114] <- paste('maintDay', 1:112, sep="") 
-colnames(maintDiary)[115] <- "sumSeizLastMonth"
-
-
 #################################################################################
 ########################### BASELINE DIARY ######################################
 #################################################################################
@@ -77,8 +57,6 @@ for (j in 1:nSubjects) {
   return(baselineDiary)
 }
 
- baselineDiary <- baseline(nSubjects=200, nDays=28, nMonths=2)
-
 #################################################################################
 ########################### MAINTENANCE DIARY ###################################
 #################################################################################
@@ -105,7 +83,6 @@ for (j in 1:nSubjects) {
   return(maintDiary)
 }
 
- maintDiary <- maintenance(nSubjects=200, nDays=28, nMonths=4)
 
 #################################################################################
 ########################### SMALL N OF BASELINE SEIZURES ########################
@@ -123,29 +100,32 @@ lowSeizure <- function(pct, nSeizures, nSubjects, nMonths, nDays){
                                          replace=TRUE, prob=c(pct, (1-pct))) 
   if (baselineDiary$lowBaseSeiz[j] == 1) {
   if (nSeizures %in% c(1,2,3)) {
-      repeat {
-        diaryDays <- rnbinom(n=nMonths*nDays, mu=(baselineDiary$baselineMu[j] <- runif(1, 0.1, 0.99)), 
-                             size=(baselineDiary$baselineSize[j] <- runif(1, 1, 99)))
-        val1 <- sum(diaryDays[1:28])
-        val2 <- sum(diaryDays[29:56])
-        if ((val1 <= nSeizures & val1 >0) & (val2 <= nSeizures & val2 > 0)) { 
-          baselineDiary[j, 4:59] <- diaryDays
-          break
+    repeat {
+      diaryDays1 <- rnbinom(n=1*nDays, mu=(baselineDiary$baselineMu[j] <- runif(1, 0.1, 0.99)), 
+                           size=(baselineDiary$baselineSize[j] <- runif(1, 1, 99)))
+      val1 <- sum(diaryDays1)
+      if (val1 <= nSeizures & val1 >0) { 
+        baselineDiary[j, 4:31] <- diaryDays1
+        break
         }
       }
+    repeat {
+      diaryDays2 <- rnbinom(n=1*nDays, mu=(baselineDiary$baselineMu[j] <- runif(1, 0.1, 0.99)), 
+                            size=(baselineDiary$baselineSize[j] <- runif(1, 1, 99)))
+      val2 <- sum(diaryDays2)
+      if (val2 <= nSeizures & val2 > 0) { 
+        baselineDiary[j, 32:59] <- diaryDays2
+        break
+      }
+    }
     } else {
-      stop("nSeizures should be 1,2,3")
+      stop("nSeizures should be 1, 2, or 3")
     }
   } 
 }
   return(baselineDiary)
 }
   
-
-baselineDiary <- lowSeizure(pct=0.1, nSeizures=1, nSubjects=200, nMonths=2, nDays=28)
-rowSums(baselineDiary[17, 4:28]) 
-rowSums(baselineDiary[17, 29:59]) 
-
 #  sampleBad <- diaryMatrix[sample(nrow(diaryMatrix), size=(nrow(diaryMatrix)*0.1)), 1]
 #  c <- ifelse(diaryMatrix[,1] %in% sampleBad, 1, 0) 
 
