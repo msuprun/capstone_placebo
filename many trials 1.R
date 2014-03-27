@@ -9,6 +9,11 @@ ptm <- proc.time()
 diaryMatrix <- matrix(data=NA, nrow=200, ncol=200)
 respRatePlacebo <- effectSizePlacebo <- rep(NA, 500)
 df <- matrix(NA, 500, 20)
+colnames(df) <- c("respRate", "effSize", "respRate_le3_10", "effSize_le3_10",
+                  "respRate_le3_20", "effSize_le3_20", "respRate_le3_30", "effSize_le3_30", 
+                  "respRate_le2_10", "effSize_le2_10",  "respRate_le2_20", "effSize_le2_20", 
+                  "respRate_le2_30", "effSize_le2_30", "respRate_eq1_10", "effSize_eq1_10", 
+                  "respRate_eq1_20", "effSize_eq1_20", "respRate_eq1_30",  "effSize_eq1_30")
 set.seed(-1025)
 # i = trail #, j = subject ID 
 ##### Trial for everyone with >= 4 seizures per month
@@ -115,8 +120,8 @@ for (i in 1:500){
         repeat {
           diaryDays1 <- rnbinom(n=28, mu=(diaryMatrix[j,2] <- runif(1, 0.1, 0.99)), 
                                 size=(diaryMatrix[j,3] <- runif(1, 1, 99)))
-          val1 <- sum(diaryDays1)
-          if (val1 <= nSeizures & val1 >0) { 
+          sumBaselineMonth1 <- sum(diaryDays1)
+          if (sumBaselineMonth1 <= nSeizures & sumBaselineMonth1 >0) { 
             diaryMatrix[j, 4:31] <- diaryDays1
             break
           }
@@ -124,8 +129,8 @@ for (i in 1:500){
         repeat {
           diaryDays2 <- rnbinom(n=28, mu=(diaryMatrix[j,2] <- runif(1, 0.1, 0.99)), 
                                 size=(diaryMatrix[j,3] <- runif(1, 1, 99)))
-          val2 <- sum(diaryDays2)
-          if (val2 <= nSeizures & val2 > 0) { 
+          sumBaselineMonth2 <- sum(diaryDays2)
+          if (sumBaselineMonth2 <= nSeizures & sumBaselineMonth2 > 0) { 
             diaryMatrix[j, 32:59] <- diaryDays2
             break
           }
@@ -177,59 +182,70 @@ for (i in 1:500){
   df[i,3:4] <- cbind(respRatePlacebo[i], effectSizePlacebo[i])
 }
 
-
-# selecting 10% of the sample to have only <= 1 seizure per month
-diaryMatrix[j,35] <- sample(c(1, 0), 1, replace=TRUE, prob=c(0.1, 0.9))  
-#  sampleBad <- diaryMatrix[sample(nrow(diaryMatrix), size=(nrow(diaryMatrix)*0.1)), 1]
-#  c <- ifelse(diaryMatrix[,1] %in% sampleBad, 1, 0)
-# only one or less seizures per month for those 10%  
-if (diaryMatrix[j,35] == 1){
-  diary28Days <- rnbinom(n = 28, mu = (diaryMatrix[j, 2] <- 0.01), 
-                         size = (diaryMatrix[j, 3] <- runif(1, min=1, max=3))) 
-  diaryMatrix[j, 4:31] <- diary28Days
-}
-diaryMatrix[, 32] <- apply(diaryMatrix[, 4:31],1,sum)  # N of seizures per 28 days
-
 # Stop the clock
 t <- proc.time() - ptm
 t/60
 
-# Cleaning the workspace
-rm(r0, diary28Days, diaryMain, sumBase, ptm, exT, seizureReducPlacebo)
+# Number of subjects with low BSR
+sum(diaryMatrix[,176])
+# Checking if low BSR executed properly (each value should be <= nSeizures)
+rowSums(diaryMatrix[which(diaryMatrix[,176]==1),4:31])
+rowSums(diaryMatrix[which(diaryMatrix[,176]==1),32:59])
 
-# checking means vs sums for baseline vs last month of the trial
-diaryMatrix[21:40, c(33,34, 32,150)]
-diaryMatrix[21:40, c(33,34, 2,36)]
+# Cleaning the workspace
+rm(pct, r0, sumBaselineMonth1, sumBaselineMonth2, sumVal, 
+   t, val1, val2, q, p, pct, ptm, nSeizures, i, j, diaryDays, diaryDays1,
+   diaryDays2)
+
+# testing ES and RRate 
+colMeans(df[,c(1,3,5,7,9,11,13,15,17,19)])
+colMeans(df[,c(2,4,6,8,10,12,14,16,18,20)])
+t.test(x=df$effSize, y=df$effSize_le3_30, alternative="two.sided")
+t.test(x=df$respRate, y=df$respRate_le3_30, alternative="two.sided")
 
 
 # Graphs 
 # dataset for plots
-df <- as.data.frame(cbind(effectSizePlacebo, respRatePlacebo))
-df$rounded <- round(df[,1], 5)
+df <- as.data.frame(df)
 
 library(ggplot2)
 # Effect size over 500 simulations
 p <- ggplot(df, aes(x=effSize)) 
-(p + geom_histogram(binwidth=0.2, colour="darkgreen", fill="white") + theme_bw() 
+p1 <- ((p + geom_histogram(binwidth=0.2, colour="darkgreen", fill="white") + theme_bw() 
  + geom_vline(aes(xintercept=mean(effSize, na.rm=T)), color="magenta", linetype="dashed", size=1)
- + xlab("Effect Size %") + ggtitle("Effect Size for Placebo Group, NSim=500"))
+ + xlab("Effect Size %") + ggtitle("EffSize Placebo, NSim=500")))
+p <- ggplot(df, aes(x=effSize_le3_30)) 
+p2 <- ((p + geom_histogram(binwidth=0.2, colour="darkgreen", fill="white") + theme_bw() 
+        + geom_vline(aes(xintercept=mean(effSize_le3_30, na.rm=T)), color="magenta", linetype="dashed", size=1)
+        + xlab("Effect Size %") + ggtitle("EffSize: <=3 seiz, 30%")))
+p <- ggplot(df, aes(x=effSize_le3_20)) 
+p3 <- ((p + geom_histogram(binwidth=0.2, colour="darkgreen", fill="white") + theme_bw() 
+        + geom_vline(aes(xintercept=mean(effSize_le3_20, na.rm=T)), color="magenta", linetype="dashed", size=1)
+        + xlab("Effect Size %") + ggtitle("EffSize: <=3 seiz, 20%")))
+p <- ggplot(df, aes(x=effSize_le3_10)) 
+p4 <- ((p + geom_histogram(binwidth=0.2, colour="darkgreen", fill="white") + theme_bw() 
+        + geom_vline(aes(xintercept=mean(effSize_le3_10, na.rm=T)), color="magenta", linetype="dashed", size=1)
+        + xlab("Effect Size %") + ggtitle("EffSize: <=3 seiz, 10%")))
 
 # Responder rate over 500 simulations
 q <- ggplot(df, aes(x=respRate)) 
-(q + geom_histogram(binwidth=1, colour="midnightblue", fill="white") + theme_bw() 
+q1 <- ((q + geom_histogram(binwidth=1, colour="midnightblue", fill="white") + theme_bw() 
  + geom_vline(aes(xintercept=mean(respRate, na.rm=T)), color="magenta", linetype="dashed", size=1)
- + xlab("Responder Rate %") + ggtitle("Responder Rate Placebo, NSim=500"))
+ + xlab("Responder Rate %") + ggtitle("RespRate Placebo, NSim=500")))
 q <- ggplot(df, aes(x=respRate_le3_30)) 
-(q + geom_histogram(binwidth=1, colour="midnightblue", fill="white") + theme_bw() 
+q2 <- ((q + geom_histogram(binwidth=1, colour="midnightblue", fill="white") + theme_bw() 
  + geom_vline(aes(xintercept=mean(respRate, na.rm=T)), color="magenta", linetype="dashed", size=1)
- + xlab("Responder Rate %") + ggtitle("Responder Rate: <=3 seizures, 30%, NSim=500"))
+ + xlab("Responder Rate %") + ggtitle("RespRate: <=3 seiz, 30%")))
 q <- ggplot(df, aes(x=respRate_le3_20)) 
-(q + geom_histogram(binwidth=1, colour="midnightblue", fill="white") + theme_bw() 
+q3 <- ((q + geom_histogram(binwidth=1, colour="midnightblue", fill="white") + theme_bw() 
  + geom_vline(aes(xintercept=mean(respRate_le3_20, na.rm=T)), color="magenta", linetype="dashed", size=1)
- + xlab("Responder Rate %") + ggtitle("Responder Rate: <=3 seizures, 20%, NSim=500"))
+ + xlab("Responder Rate %") + ggtitle("Resp Rate: <=3 seiz, 20%")))
 q <- ggplot(df, aes(x=respRate_le3_10)) 
-(q + geom_histogram(binwidth=1, colour="midnightblue", fill="white") + theme_bw() 
+q4 <- ((q + geom_histogram(binwidth=1, colour="midnightblue", fill="white") + theme_bw() 
  + geom_vline(aes(xintercept=mean(respRate_le3_10, na.rm=T)), color="magenta", linetype="dashed", size=1)
- + xlab("Responder Rate %") + ggtitle("Responder Rate: <=3 seizures, 10%, NSim=500"))
+ + xlab("Responder Rate %") + ggtitle("RespRate: <=3 seiz, 10%")))
 
+library(gridExtra)
+grid.arrange(q1,q2,q3,q4)
+grid.arrange(p1,p2,p3,p4)
 
