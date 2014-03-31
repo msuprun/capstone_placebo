@@ -1,4 +1,3 @@
-# Single trial 
 rm(list=ls())
 
 # check how much time it takes for the code to run
@@ -7,8 +6,8 @@ ptm <- proc.time()
 
 # Initial diary (200 subjects)
 diaryMatrix <- matrix(data=NA, nrow=200, ncol=200)
-respRatePlacebo <- effectSizePlacebo <- rep(NA, 500)
-df <- matrix(NA, 500, 20)
+respRatePlacebo <- effectSizePlacebo <- rep(NA, 3000)
+df <- matrix(NA, 3000, 20)
 colnames(df) <- c("respRate", "effSize", "respRate_le3_10", "effSize_le3_10",
                   "respRate_le3_20", "effSize_le3_20", "respRate_le3_30", "effSize_le3_30", 
                   "respRate_le2_10", "effSize_le2_10",  "respRate_le2_20", "effSize_le2_20", 
@@ -17,7 +16,7 @@ colnames(df) <- c("respRate", "effSize", "respRate_le3_10", "effSize_le3_10",
 set.seed(-1025)
 # i = trail #, j = subject ID 
 ##### Trial for everyone with >= 4 seizures per month
-for (i in 1:500){
+for (i in 1:3000){
   for (j in 1:200) {
     diaryMatrix[j, 1] <- j  # ID
     repeat {
@@ -54,14 +53,20 @@ for (i in 1:500){
   # 50% improvement for 20% of subjects in placebo group for 4x28 days 
   # mean of the rows as a parameter 
   for (j in 1:200) {
-    if(diaryMatrix[j,61] %in% c(1,2)) {
+    if(diaryMatrix[j,61] == 1) {
+      repeat {
       diaryDays <- rnbinom(n = 4*28,  
-                           mu = (diaryMatrix[j, 62] <- 0.5*mean(diaryMatrix[j, 4:31])),
+                           mu = (diaryMatrix[j, 62] <- 0.5*mean(diaryMatrix[j, 4:59])),
                            size = (diaryMatrix[j, 63] <- diaryMatrix[j, 3]))
-      diaryMatrix[j, 64:175] <- diaryDays
+      resp <- ifelse(mean(diaryDays) <= 0.5*mean(diaryMatrix[j, 4:59]), 1, 0)
+      if (resp == 1) {
+        diaryMatrix[j, 64:175] <- diaryDays
+        break
+      }
+     }
     } else {
       diaryDays <- rnbinom(n = 4*28,  
-                           mu = (diaryMatrix[j, 62] <- mean(diaryMatrix[j, 4:31])),
+                           mu = (diaryMatrix[j, 62] <- mean(diaryMatrix[j, 4:59])),
                            size = (diaryMatrix[j, 63] <- diaryMatrix[j, 3]))
       diaryMatrix[j, 64:175] <- diaryDays
     }
@@ -74,7 +79,7 @@ for (i in 1:500){
   
   ### Responder rate:
   responder <- ifelse((rowSums(diaryPlacebo[,64:175])/112)*28 
-                      < 0.5*(28*rowSums((diaryPlacebo[,4:59]/56))), 1,0)
+                      <= 0.5*(28*rowSums((diaryPlacebo[,4:59]/56))), 1,0)
   respRatePlacebo[i] <- 100*(sum(responder)/nrow(diaryPlacebo))
   
   
@@ -84,7 +89,7 @@ for (i in 1:500){
   
   seizureReducPlacebo <- (100*(((nSeizMaint112Days/112)*28) - 28*(nSeizBase56Days/56))
                           / 28*(nSeizBase56Days/56))  
-  effectSizePlacebo[i] <- mean(seizureReducPlacebo)
+  effectSizePlacebo[i] <- median(seizureReducPlacebo)
   # dataset with the results only for N simulations 
   df[i,1:2] <- cbind(respRatePlacebo[i], effectSizePlacebo[i])
 }
@@ -96,7 +101,7 @@ set.seed(-1025)
 # choose pct of subjects with low BSR and max number of low seizres (0<nSeiz<4)
 pct <- 0.1
 nSeizures <- 3
-for (i in 1:500){
+for (i in 1:3000){
   for (j in 1:200) {
     diaryMatrix[j, 1] <- j  # ID
     repeat {
@@ -147,14 +152,20 @@ for (i in 1:500){
 # 50% improvement for 20% of subjects in placebo group for 4x28 days 
 # mean of the rows as a parameter 
   for (j in 1:200) {
-    if(diaryMatrix[j,61] %in% c(1,2)) {
-      diaryDays <- rnbinom(n = 4*28,  
-                           mu = (diaryMatrix[j, 62] <- 0.5*mean(diaryMatrix[j, 4:31])),
-                           size = (diaryMatrix[j, 63] <- diaryMatrix[j, 3]))
-      diaryMatrix[j, 64:175] <- diaryDays
+    if(diaryMatrix[j,61] == 1) {
+      repeat {
+        diaryDays <- rnbinom(n = 4*28,  
+                             mu = (diaryMatrix[j, 62] <- 0.5*mean(diaryMatrix[j, 4:59])),
+                             size = (diaryMatrix[j, 63] <- diaryMatrix[j, 3]))
+        resp <- ifelse(mean(diaryDays) <= 0.5*mean(diaryMatrix[j, 4:59]), 1, 0)
+        if (resp == 1) {
+          diaryMatrix[j, 64:175] <- diaryDays
+          break
+        }
+      }
     } else {
       diaryDays <- rnbinom(n = 4*28,  
-                           mu = (diaryMatrix[j, 62] <- mean(diaryMatrix[j, 4:31])),
+                           mu = (diaryMatrix[j, 62] <- mean(diaryMatrix[j, 4:59])),
                            size = (diaryMatrix[j, 63] <- diaryMatrix[j, 3]))
       diaryMatrix[j, 64:175] <- diaryDays
     }
@@ -167,7 +178,7 @@ for (i in 1:500){
   
   ### Responder rate:
   responder <- ifelse((rowSums(diaryPlacebo[,64:175])/112)*28 
-                      < 0.5*(28*rowSums((diaryPlacebo[,4:59]/56))), 1,0)
+                      <= 0.5*(28*rowSums((diaryPlacebo[,4:59]/56))), 1,0)
   respRatePlacebo[i] <- 100*(sum(responder)/nrow(diaryPlacebo))
   
   
@@ -177,7 +188,7 @@ for (i in 1:500){
   
   seizureReducPlacebo <- (100*(((nSeizMaint112Days/112)*28) - 28*(nSeizBase56Days/56))
                           / 28*(nSeizBase56Days/56))  
-  effectSizePlacebo[i] <- mean(seizureReducPlacebo)
+  effectSizePlacebo[i] <- median(seizureReducPlacebo)
   # dataset with the results only for N simulations 
   df[i,3:4] <- cbind(respRatePlacebo[i], effectSizePlacebo[i])
 }
@@ -194,8 +205,7 @@ rowSums(diaryMatrix[which(diaryMatrix[,176]==1),32:59])
 
 # Cleaning the workspace
 rm(pct, r0, sumBaselineMonth1, sumBaselineMonth2, sumVal, 
-   t, val1, val2, q, p, pct, ptm, nSeizures, i, j, diaryDays, diaryDays1,
-   diaryDays2)
+   t, ptm, nSeizures, i, j, diaryDays, diaryDays1, diaryDays2)
 
 # testing ES and RRate 
 colMeans(df[,c(1,3,5,7,9,11,13,15,17,19)])
@@ -245,7 +255,12 @@ q4 <- ((q + geom_histogram(binwidth=1, colour="midnightblue", fill="white") + th
  + geom_vline(aes(xintercept=mean(respRate_le3_10, na.rm=T)), color="magenta", linetype="dashed", size=1)
  + xlab("Responder Rate %") + ggtitle("RespRate: <=3 seiz, 10%")))
 
+# Several plots in one window 
 library(gridExtra)
 grid.arrange(q1,q2,q3,q4)
 grid.arrange(p1,p2,p3,p4)
 
+test <- diaryMatrix[which(diaryMatrix[,61] == 1),]
+r.test <- ifelse((rowSums(test[,64:175])/112)*28 
+                    <= 0.5*(28*rowSums((test[,4:59]/56))), 1,0)
+cbind(rowMeans(test[, 4:59]), rowMeans(test[,64:175])*2, rowMeans(test[,64:175]))
