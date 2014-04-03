@@ -119,8 +119,8 @@ for (i in 1:3000){
     }
     # Those who have 1 in lowBaseSeiz will later have < 4 sezires / 28 days at baseline
     # V176 - those who have low baseline seizure rate will have value of 1
-    diaryMatrix[j, 176] <- sample(c(1, 0), 1, 
-                                           replace=TRUE, prob=c(pct, (1-pct))) 
+    r1 <- diaryMatrix[sample(nrow(diaryMatrix), size=(pct*nrow(diaryMatrix)))]
+    diaryMatrix[,176] <- ifelse(diaryMatrix[,1] %in% r0, 1, 0)
     if (diaryMatrix[j, 176] == 1) {
         repeat {
           diaryDays1 <- rnbinom(n=28, mu=(diaryMatrix[j,2] <- runif(1, 0.1, 0.99)), 
